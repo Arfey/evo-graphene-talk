@@ -1,0 +1,258 @@
+import random
+
+import graphene
+
+
+
+class Query(graphene.ObjectType):
+    '''The main query object of graphene.'''
+
+    random_int = graphene.Int(
+      description='Return the random int, 1..500'
+    )
+
+
+    def resolve_random_int(self, info: ResolveInfo) -> int:
+      return random.randint(0, 500)
+
+
+schema = graphene.Schema(query=Query)
+
+
+print(schema.execute('{ randomInt }'), context={})  # 15
+
+
+
+
+import graphene
+
+
+
+class User(graphene.ObjectType):
+    '''A user is an individual's account on current api.'''
+
+    id = graphene.Int(
+        description='A id of user',
+        required=True,
+    )
+    username = graphene.String(
+        description='A username of user',
+    )
+    email = graphene.String(
+        description='A username of user',
+    )
+    avatar_url = graphene.String(
+        description='A main user`s photo',
+    )
+
+
+
+
+class UserQuery(graphene.ObjectType):
+    users = graphene.List(
+        User,
+        description='A list of all users',
+    )
+    user = graphene.Field(
+        User,
+        id=graphene.Argument(graphene.Int),
+        description='A user with given id',
+    )
+
+    async def resolve_users(self, info: ResolveInfo) -> List[RowProxy]:
+        app = info.context['request'].app
+
+        async with app['db'].acquire() as conn:
+            return await select_users(conn)
+
+    async def resolve_user(self, info: ResolveInfo, id: int) -> RowProxy:
+        app = info.context['request'].app
+
+        async with app['db'].acquire() as conn:
+            return await select_user(conn, id)
+
+
+class UserQuery(graphene.ObjectType):
+    async def resolve_users(self, info: ResolveInfo) -> List[User]:
+        return (User(id=1), User(id=2))
+
+    async def resolve_user(self, info: ResolveInfo, id: int) -> User:
+        return User(id=id)
+
+
+
+class User(graphene.ObjectType):
+    '''A user is an individual's account on current api.'''
+
+    ...
+
+    def resolve_id(self, info) -> int:
+      return self['id']
+
+    def resolve_avatar_url(self, info) -> str:
+      return 'https://images.store.com/users/%s' % self["id"]
+
+
+
+class UserQuery(graphene.ObjectType):
+    ...
+
+    async def resolve_users(self, info: ResolveInfo) -> list[dict]:
+        return ({'id': 1}, {'id': 2})
+
+    async def resolve_user(self, info: ResolveInfo, id: int) -> dict:
+        return {'id': id}
+
+
+
+
+class User(graphene.ObjectType):
+
+    ...
+    
+    friends = graphene.List(
+      lambda: User,
+      description='List of friends',
+    )
+
+    async def resolve_friends(self, info: ResolveInfo) -> List[RowProxy]:
+        app = info.context['request'].app
+
+        async with app['db'].acquire() as conn:
+            return await select_users(conn, self['friend_ids'])
+
+
+
+from aiodataloader import DataLoader
+
+
+class UserDataLoader(DataLoader):
+    '''A simple user data loader. Solve N + 1 problems.'''
+
+    async def batch_load_fn(self, keys: List[int]) -> RowsProxy:
+        async with self.engine.acquire() as conn:
+            response = await select_users(conn, keys)
+
+        tems_dict = {
+            key: value for key, value in zip(sorted(set(keys)), items)
+        }
+
+        return [items_dict[key] for key in keys]
+
+user_dataloader = UserDataLoader()
+
+
+
+
+class User(graphene.ObjectType):
+
+    ...
+
+    async def resolve_friends(self, info: ResolveInfo) -> Promise:
+      return await user_dataloader.load_many(self['friend_ids'])
+
+
+
+mutation MessagesMutation {
+    createMessage(text:"hello", recipientId: 44) {
+        is_succes
+        message {
+          text
+          recipient {
+            id
+            username
+
+            friends(firs: 4) {
+              avatar_url
+              id
+            }
+          }
+        }
+    }
+}
+
+
+
+
+class Message(graphene.ObjectType):
+    '''A messages is main object that representation data of user message.'''
+    id = graphene.Int(
+        description="An id of message, it's unique for all message",
+    )
+
+    text = graphene.String(
+        description="An text of message"
+    )
+
+    owner = graphene.Field(
+        User,
+        description="An creator of message",
+    )
+
+    recipient = graphene.Field(
+        User,
+        description="An recipient of message",
+    )
+
+    async def resolve_owner(self, info: ResolveInfo) -> List[RowProxy]:
+        app = info.context['request'].app
+
+        return await user_dataloader.load(self['owner_id'])
+
+
+    async def resolve_recipient(self, info: ResolveInfo) -> List[RowProxy]:
+        app = info.context['request'].app
+
+        return await user_dataloader.load(self['recipient_id'])
+
+
+
+class AddMessageMutation(graphene.Mutation):
+    '''Gives interface for create new messages.'''
+
+    class Arguments:
+        recipient_id = graphene.Int(required=True)
+        owner_id = graphene.Int(required=True)
+        text = graphene.String()
+
+    is_created = graphene.Boolean()
+    message = graphene.Field(Message)
+
+    @staticmethod
+    async def mutate(info, recipient_id: int, owner_id: int, text: str = ''):
+        app = info.context['request'].app
+
+        async with app['db'].acquire() as conn:
+            message = await create_message(conn, recipient_id, owner_id, body)
+
+
+        return AddMessageMutation(is_created=True, message=message)
+
+
+class Mutations(graphene.ObjectType):
+    add_message = AddMessageMutation.Field()
+
+
+schema = graphene.Schema(mutation=Mutations)
+
+
+
+{
+  data: [],
+  errors: [],
+}
+
+
+
+class User(graphene.ObjectType):
+
+    ...
+
+    async def resolve_friends(self, info: ResolveInfo) -> List[RowProxy]:
+        app = info.context['request'].app
+
+        assert self['user_id'] != info.context['request'].user.id, 'Error'
+
+        async with app['db'].acquire() as conn:
+            return await select_users(conn, self['friend_ids'])
+

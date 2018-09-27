@@ -1,0 +1,12 @@
+.token.operator, .token.entity, .token.url, .language-css .token.string, .style .token.string {
+    background: none !important;
+}
+
+
+.react-live-error {
+	display: none;
+}
+
+.react-live > div > div:first-child {
+	display: none;
+}

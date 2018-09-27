@@ -10,7 +10,3 @@
 .react-live > div > div:first-child {
 	display: none;
 }
-
-.spectacle-slide {
-	background-color: #d0d0d0 !important;
-}

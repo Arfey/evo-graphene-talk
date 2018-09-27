@@ -110,6 +110,12 @@ export default class Presentation extends Component {
           </ List>
         </Slide>
 
+        <Slide transition={['fade']} bgColor="black" textColor="white">
+          <Heading size={2} lineHeight={1} textColor="secondary" textColor="primary">
+            Cannot read property 'name' of undefined
+          </Heading>
+        </Slide>
+
 
         <Slide >
           <ComponentPlayground theme="dark" code={require('raw-loader!../assets/apollo.example')}/>
